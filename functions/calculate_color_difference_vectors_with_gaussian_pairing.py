@@ -1,14 +1,14 @@
 import numpy as np
 import cv2
-from conversions import *
 
-def calculate_color_difference_vectors_with_gaussian_pairing(image):#TODO この段階で重みを計算
+
+def calculate_color_difference_vectors_with_gaussian_pairing(image):
     """
     ガウシアンペアリングを使用して画像内の各ピクセルの色差ベクトルを計算します。
 
-    :param image: CIE L*a*b* 色空間の入力画像。
+    :param image: bgr 色空間の入力画像。
     :param sigma: ペアリングに使用されるガウス分布の標準偏差。
-    :return: 色差ベクトルの配列。重み関数w
+    :return: 色差ベクトルの配列。
     sigmaは分散ではなく標準偏差であることに注意
     """
     height, width, _ = image.shape
@@ -16,17 +16,21 @@ def calculate_color_difference_vectors_with_gaussian_pairing(image):#TODO この
     Xl = np.zeros((N, 3))  # 色差行列の初期化
     w = np.zeros(N)
 
-    sigma = np.sqrt((2 / np.pi) * np.sqrt(2 * min(height, width)))# 近隣ピクセルの参照に使用
+    sigma = (2 / np.pi) * np.sqrt(2 * min(height, width))
+
+    # print("sigma")
+    # print(sigma)
 
     sigma_weight = 5 #明度差重みのパラメータ
 
-    hsl_image = rgb_to_hsl(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+    lab_image = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
+    flat_lab_image = lab_image.reshape(N, 3)
 
-    mhsl_image = hsl_to_mhsl(hsl_image)
-
-    cartesian_mhsl = hsl_to_cartesian(mhsl_image)
-
-    flat_mhsl_image = cartesian_mhsl.reshape(N, 3)
+    lab_process = np.zeros((N,3))#8bit扱いから32bit扱いに変換
+    for i in range(N):
+        lab_process[i][0] = 100 * flat_lab_image[i][0] / 255
+        lab_process[i][1] = flat_lab_image[i][1] - 128
+        lab_process[i][2] = flat_lab_image[i][2] - 128
 
     # ガウス分布を使用してランダムなペアを生成
     for i in range(N):
@@ -34,6 +38,7 @@ def calculate_color_difference_vectors_with_gaussian_pairing(image):#TODO この
         x, y = i % width, i // width
 
         # ガウス分布に基づいてランダムなオフセットを生成
+        np.random.seed(seed=32)
         offset_x, offset_y = np.random.normal(0, sigma, 2)
         nx, ny = int(x + offset_x), int(y + offset_y)
 
@@ -43,11 +48,10 @@ def calculate_color_difference_vectors_with_gaussian_pairing(image):#TODO この
 
         # 色差ベクトルを計算
         neighbor_index = ny * width + nx
-        Xl[i, 0] = flat_mhsl_image[i, 0] - flat_mhsl_image[neighbor_index, 0]#直交座標HSLのx
-        Xl[i, 1] = flat_mhsl_image[i, 1] - flat_mhsl_image[neighbor_index, 1]#y
-        Xl[i, 2] = flat_mhsl_image[i, 2] - flat_mhsl_image[neighbor_index, 2]#z(=L)
+        Xl[i, 0] = lab_process[i, 0] - lab_process[neighbor_index, 0]
+        Xl[i, 1] = lab_process[i, 1] - lab_process[neighbor_index, 1]
+        Xl[i, 2] = lab_process[i, 2] - lab_process[neighbor_index, 2]
 
-        w[i] = np.exp(-np.square(flat_mhsl_image[i, 2] - flat_mhsl_image[neighbor_index, 2]) / 2 * np.square(sigma_weight))
+        w[i] = np.exp(-np.square(lab_process[i, 2] - lab_process[neighbor_index, 2]) / (2 * np.square(sigma_weight)))
         # print(w[i])
-    
     return Xl, w

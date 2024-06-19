@@ -110,7 +110,6 @@ def mhsl_to_hsl(mhsl_image):#TODO S,Lのスケール調整
     R, E, G, C, B, M = 0.30, 0.66, 0.59, 0.64, 0.12, 0.26
     a = np.array([R, E, G, C, B, M, R])
 
-    H_tilda
     q = (H_tilda / 60).astype(int)
     t = H_tilda % 60
 

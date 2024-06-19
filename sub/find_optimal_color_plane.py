@@ -1,11 +1,11 @@
 import sys
-sys.path.append('/Users/hiyori/kang_plus')
+sys.path.append('/Users/hiyori/kang_plus_mhsl')
 from functions import *
 import numpy as np
 import cv2
 from scipy.optimize import minimize
 
-image = cv2.imread('/Users/hiyori/kang_plus/images/Lena.ppm')
+image = cv2.imread('images/chart26/chart26.ppm')
 assert image is not None, "読み込みに失敗しました"
 
 height, width, _ = image.shape
@@ -21,26 +21,19 @@ result_image = image
 
 #Xlを計算する関数 TODO ここに重みを追加
 Xl, w = calculate_color_difference_vectors_with_gaussian_pairing.calculate_color_difference_vectors_with_gaussian_pairing(image)
-# print(w.shape), print(Xl.T.shape), print(Xl.shape)
-Al = Xl.T @ Xl
-# print((w @ Xl).shape)
-Xl_new = np.zeros_like(Xl)
+
+Xl_weight = np.zeros_like(Xl)
 
 for i in range(N):
-    Xl_new[i,0] = Xl[i,0] * w[i]
-    Xl_new[i,1] = Xl[i,1] * w[i]
-    Xl_new[i,2] = Xl[i,2] * w[i]
-    # print(Xl_new[i,0])
-    # print(Xl[i,0])
-    # print(Xl[i,2])
-    # print()
+    Xl_weight[i,0] = Xl[i,0] * w[i]
+    Xl_weight[i,1] = Xl[i,1] * w[i]
+    Xl_weight[i,2] = Xl[i,2] * w[i]
 
-Al_new = Xl_new.T @ Xl
-
+Al_weight = Xl_weight.T @ Xl_weight
 
 # 目的関数と制約条件の定義
 def objective(u):
-    return ((u.T @ Al_new @ u) / N)
+    return ((u.T @ Al_weight @ u) / N)
 
 # L軸に垂直な制約
 def constraint_perpendicular_to_L(u):
@@ -67,14 +60,21 @@ optimized_u = res.x
 optimized_u = np.reshape(optimized_u, (3,1))
 
 # 最適化された結果の u^T Al u の値を計算
-optimized_value = (optimized_u.T @ Al @ optimized_u) / N
+optimized_value = (optimized_u.T @ Al_weight @ optimized_u) / N
 
 # 最適色平面と、二色覚平面の差分だけ回す
 img_out = cycle.cycle(image, optimized_u)#TODO cycle_imageに変更
 
+x = optimized_u.reshape(1,3)[0,0]
+y = optimized_u.reshape(1,3)[0,1]
+print(x)
+print(y)
+
+optimized_degree = (50.19789 - (np.rad2deg(np.arctan2(y,x)) + 90)) % 180
+
 #最終的な画像を出す
 print("done!")
-print(optimized_u)
+print(optimized_degree)
 # cv2.imshow('result', img_out)
 # cv2.waitKey()
 # cv2.destroyAllWindows()
