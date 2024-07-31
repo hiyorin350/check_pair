@@ -1,6 +1,6 @@
 import numpy as np
 import cv2
-
+import conversions as con
 
 def calculate_color_difference_vectors_with_gaussian_pairing(image):
     """
@@ -23,14 +23,8 @@ def calculate_color_difference_vectors_with_gaussian_pairing(image):
 
     sigma_weight = 5 #明度差重みのパラメータ
 
-    lab_image = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
-    flat_lab_image = lab_image.reshape(N, 3)
-
-    lab_process = np.zeros((N,3))#8bit扱いから32bit扱いに変換
-    for i in range(N):
-        lab_process[i][0] = 100 * flat_lab_image[i][0] / 255
-        lab_process[i][1] = flat_lab_image[i][1] - 128
-        lab_process[i][2] = flat_lab_image[i][2] - 128
+    lab_image = con.rgb_to_lab(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+    flat_lab_image = (lab_image.reshape(N, 3))
 
     # ガウス分布を使用してランダムなペアを生成
     for i in range(N):
@@ -48,10 +42,10 @@ def calculate_color_difference_vectors_with_gaussian_pairing(image):
 
         # 色差ベクトルを計算
         neighbor_index = ny * width + nx
-        Xl[i, 0] = lab_process[i, 0] - lab_process[neighbor_index, 0]
-        Xl[i, 1] = lab_process[i, 1] - lab_process[neighbor_index, 1]
-        Xl[i, 2] = lab_process[i, 2] - lab_process[neighbor_index, 2]
+        Xl[i, 0] = flat_lab_image[i, 0] - flat_lab_image[neighbor_index, 0]
+        Xl[i, 1] = flat_lab_image[i, 1] - flat_lab_image[neighbor_index, 1]
+        Xl[i, 2] = flat_lab_image[i, 2] - flat_lab_image[neighbor_index, 2]
 
-        w[i] = np.exp(-np.square(lab_process[i, 2] - lab_process[neighbor_index, 2]) / (2 * np.square(sigma_weight)))
+        w[i] = np.exp(-np.square(flat_lab_image[i, 0] - flat_lab_image[neighbor_index, 0]) / (2 * np.square(sigma_weight)))
         # print(w[i])
     return Xl, w

@@ -1,2 +1,2 @@
-output_csv_file_path = 'filtered_order_pairs.csv'
-# df_grouped.to_csv(output_csv_file_path, index=False)
+rgb_values = con.lab_to_rgb_non_linear(lab)
+hsl_values = con.rgb_to_hsl_linear(rgb_values)
